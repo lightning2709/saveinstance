@@ -2,6 +2,8 @@
 --!optimize 2
 --!divine-intellect
 -- https://discord.gg/wx4ThpAsmw
+-- Maintenance revision: 2026-11-27 (offline XML validation documentation).
+-- See docs/EXPORT_VALIDATION.md for the separate validator; no runtime behavior changes.
 
 local function string_find(s, pattern)
 	return string.find(s, pattern, nil, true)
