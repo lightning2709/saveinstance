@@ -106,55 +106,74 @@ do -- * Load Region of Déjà Vu
 		end
 	end
 
-	local function benchmark(funcs, ...)
-		local ranking = table.create(2)
-		for i, f in funcs do
-			local start = os.clock()
-			for _ = 1, 50 do
-				f(...)
-			end
-			ranking[i] = { t = os.clock() - start, f = f }
-		end
-		table.sort(ranking, function(a, b)
-			return a.t < b.t
-		end)
-		return ranking[1].f
-	end
-
-	local test_str = string.rep("\1\0\0\0\1\2\3\4\5\6\7", 50)
-
+	-- Prefer the platform codec; keep a pinned, licensed Base64 fallback.
 	do
-		-- Credits @daily3014 & @XoifaiI
-		local rbxcrypt_base64encode
-		pcall(function()
-			local b64_enc_buf = loadstring(
-				game:HttpGet(
-					"https://raw.githubusercontent.com/daily3014/rbx-cryptography/refs/heads/main/src/Utilities/Base64.luau",
-					true
-				),
-				"Base64"
-			)().Encode
-			rbxcrypt_base64encode = function(raw)
-				return buffer.tostring(b64_enc_buf(buffer.fromstring(raw)))
+		local discoveredEncoder = base64encode
+		local failures = {}
+		local vectors = {
+			{ "", "" },
+			{ "f", "Zg==" },
+			{ "fo", "Zm8=" },
+			{ "foo", "Zm9v" },
+			{ "foobar", "Zm9vYmFy" },
+			{ "\1\0\0\0\1", "AQAAAAE=" },
+		}
+
+		local function selectEncoder(name, encoder)
+			if type(encoder) ~= "function" then
+				table.insert(failures, name .. ": unavailable")
+				return false
 			end
+			for _, vector in vectors do
+				local ok, result = pcall(encoder, vector[1])
+				if not ok or type(result) ~= "string" or result ~= vector[2] then
+					table.insert(failures, name .. ": Base64 self-test failed")
+					return false
+				end
+			end
+			base64encode = encoder
+			return true
+		end
+
+		base64encode = nil
+		local ok, encodingService = pcall(function()
+			return game:GetService("EncodingService")
 		end)
-
-		local EncodingService = game:GetService("EncodingService")
-		local EncodingService_base64encode = function(raw)
-			return buffer.tostring(EncodingService:Base64Encode(buffer.fromstring(raw)))
-		end
-
-		-- * Tests if base64encode exists and works properly then benchmark it
-		if base64encode and base64encode("\1\0\0\0\1") == "AQAAAAE=" then
-			if rbxcrypt_base64encode then
-				base64encode =
-					benchmark({ base64encode, rbxcrypt_base64encode, EncodingService_base64encode }, test_str)
-			end
+		if ok then
+			selectEncoder("EncodingService", function(raw)
+				return buffer.tostring(encodingService:Base64Encode(buffer.fromstring(raw)))
+			end)
 		else
-			base64encode = rbxcrypt_base64encode
+			table.insert(failures, "EncodingService: unavailable")
 		end
 
-		assert(base64encode, "base64encode not found")
+		if not base64encode then
+			-- Credits @daily3014 & @XoifaiI. MIT license in modules/Base64/LICENSE.
+			local loaded, encoder = pcall(function()
+				local source = game:HttpGet(
+					"https://raw.githubusercontent.com/lightning2709/saveinstance/7bd2ab46ae2a900490426b2152cc811c0c4f512b/modules/Base64/Base64.luau",
+					true
+				)
+				local chunk, compileError = loadstring(source, "Base64")
+				assert(type(chunk) == "function", tostring(compileError))
+				local codec = chunk()
+				assert(type(codec) == "table" and type(codec.Encode) == "function", "Invalid Base64 module")
+				return function(raw)
+					return buffer.tostring(codec.Encode(buffer.fromstring(raw)))
+				end
+			end)
+			if loaded then
+				selectEncoder("Archived Base64", encoder)
+			else
+				table.insert(failures, "Archived Base64: load failed")
+			end
+		end
+
+		if not base64encode then
+			selectEncoder("Existing Base64", discoveredEncoder)
+		end
+
+		assert(base64encode, "No usable Base64 encoder: " .. table.concat(failures, "; "))
 	end
 end
 

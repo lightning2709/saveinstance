@@ -1,12 +1,12 @@
 # Dependency inventory
 
-Static inventory of `saveinstance.luau` at commit `1f582e24f05a16977ae9dd940e73abc0c2eb31db`, checked 2026-11-27. This document records source availability, not runtime compatibility or security certification.
+Static inventory of `saveinstance.luau`, checked 2026-11-27. This document records source availability, not runtime compatibility or security certification.
 
 | Dependency | Availability | Notes |
 | --- | --- | --- |
 | SomeHub / UniversalMethodFinder | Archived under `modules/SomeHub/` | Original upstream unavailable; archived copy already referenced by the entrypoint. |
 | SomeHub / StreamBuffer and RequireOnlineModule | Archived under `modules/SomeHub/` | Not directly referenced by the inspected entrypoint. |
-| Base64 (daily3014/rbx-cryptography) | Archived under `modules/Base64/` | Upstream legacy branch exists; the old main-branch URL in the existing entrypoint is unavailable. No entrypoint change in this archival commit. |
+| Base64 (daily3014/rbx-cryptography) | Archived under `modules/Base64/` and connected as a fallback | The entrypoint prefers Roblox EncodingService, then the archived codec pinned to commit `7bd2ab46ae2a900490426b2152cc811c0c4f512b`, then the existing encoder. Each candidate is checked against known Base64 vectors. Runtime compatibility remains unverified. |
 | Roblox Client Tracker Mini-API-Dump | Public file available | Version-dependent metadata; no license for redistribution of the dump verified in this audit. Not mirrored. |
 | Roblox CDN deployment history / full API dumps | Dynamic endpoints | Runtime availability and version matching not verified. |
 | Konstant V2.1 | Public file observed | Optional third-party executable decompiler; not mirrored or reviewed for redistribution rights. |
